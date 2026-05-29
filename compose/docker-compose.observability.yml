@@ -1,0 +1,136 @@
+name: docflow-observability
+
+# =============================================================================
+# DocFlow — Observability Stack (Prometheus + Grafana + Alertmanager)
+# =============================================================================
+# Khởi động: ./scripts/up.sh --observability
+# Tắt:       ./scripts/down.sh --observability
+#
+# Yêu cầu: app stack phải chạy trước (docflow_network phải tồn tại).
+#
+# Ports:
+#   Prometheus   : ${PROMETHEUS_PORT:-29111}
+#   Grafana      : ${GRAFANA_PORT:-29112}
+#   Alertmanager : ${ALERTMANAGER_PORT:-29113}
+#
+# Network:
+#   observability_network : internal, giữa các service monitoring
+#   docflow_network       : external, scrape app containers + postgres
+# =============================================================================
+
+services:
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    platform: linux/amd64
+    container_name: docflow-node-exporter
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - observability_network
+    restart: unless-stopped
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    platform: linux/amd64
+    container_name: docflow-postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-docflow}?sslmode=disable"
+    networks:
+      - observability_network
+      - docflow_network
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    platform: linux/amd64
+    container_name: docflow-alertmanager
+    entrypoint: ["/bin/sh", "/etc/alertmanager/docker-entrypoint.sh"]
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:?TELEGRAM_CHAT_ID is required}
+    ports:
+      - "${ALERTMANAGER_PORT:-29113}:9093"
+    volumes:
+      - ../alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml.tmpl:ro
+      - ../alertmanager/docker-entrypoint.sh:/etc/alertmanager/docker-entrypoint.sh:ro
+      - ../alertmanager/templates:/etc/alertmanager/templates:ro
+      - alertmanager_data:/alertmanager
+    networks:
+      - observability_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    platform: linux/amd64
+    container_name: docflow-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    ports:
+      - "${PROMETHEUS_PORT:-29111}:9090"
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../prometheus/prometheus-alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - observability_network
+      - docflow_network
+    restart: unless-stopped
+    depends_on:
+      alertmanager:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    platform: linux/amd64
+    container_name: docflow-grafana
+    ports:
+      - "${GRAFANA_PORT:-29112}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_INSTALL_PLUGINS: grafana-clock-panel
+      GF_ALERTING_ENABLED: "true"
+    volumes:
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    networks:
+      - observability_network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+networks:
+  observability_network:
+    driver: bridge
+    name: docflow-observability
+  docflow_network:
+    external: true
+    name: docflow_network
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:

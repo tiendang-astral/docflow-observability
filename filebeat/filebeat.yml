@@ -1,0 +1,48 @@
+filebeat.inputs:
+  - type: container
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    stream: all
+    multiline.type: pattern
+    multiline.pattern: '^[[:space:]]+(File |Traceback|raise |\w+Error:|\w+Exception:)'
+    multiline.negate: false
+    multiline.match: after
+    multiline.max_lines: 100
+    multiline.timeout: 5s
+
+processors:
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+  - add_host_metadata: ~
+  - decode_json_fields:
+      fields: ["message"]
+      target: "app"
+      overwrite_keys: false
+      expand_keys: true
+  - drop_fields:
+      fields:
+        - "agent.ephemeral_id"
+        - "log.offset"
+      ignore_missing: true
+
+output.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+  index: "docflow-logs-%{+yyyy.MM.dd}"
+  bulk_max_size: 512
+  workers: 2
+
+setup.template:
+  name: "docflow-logs"
+  pattern: "docflow-logs-*"
+  settings:
+    index.number_of_shards: 1
+    index.number_of_replicas: 0
+    index.refresh_interval: "10s"
+
+setup.ilm.enabled: false
+
+setup.kibana:
+  host: "kibana:5601"
+
+logging.level: warning
+logging.to_files: false

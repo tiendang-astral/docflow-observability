@@ -1,0 +1,363 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "description": "## Tổng quan hệ thống\nBiểu đồ overview cho toàn bộ DocAI Platform: trạng thái backend, API request/latency, queue backlog, job success rate và active jobs.",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "id": 1,
+      "panels": [],
+      "title": "System Overview",
+      "type": "row"
+    },
+    {
+      "description": "**Trạng thái Backend API**\n\n- = 1 (XANH): Backend đang chạy & scrape được bởi Prometheus\n- = 0 (ĐỎ): Backend không phản hồi — kiểm tra container logs ngay\n\nCơ chế: Prometheus gọi `up{job=\"docai-backend\"}` — nếu `/metrics` trả 200 → UP",
+      "gridPos": {"h": 4, "w": 3, "x": 0, "y": 1},
+      "id": 2,
+      "targets": [
+        {
+          "expr": "up{job=\"docai-backend\"}",
+          "legendFormat": "Backend",
+          "refId": "A"
+        }
+      ],
+      "title": "Backend Status",
+      "type": "stat"
+    },
+    {
+      "description": "**Tổng số request HTTP đến Backend trong 1 giờ qua**\n\nTính bằng `increase(docai_http_request_duration_seconds_count[1h])` — đếm tất cả HTTP requests (GET, POST) đến backend.\n\nSo sánh với baseline để phát hiện traffic spike hoặc drop bất thường.",
+      "gridPos": {"h": 4, "w": 6, "x": 3, "y": 1},
+      "id": 3,
+      "targets": [
+        {
+          "expr": "sum(increase(docai_http_request_duration_seconds_count[1h]))",
+          "legendFormat": "Total Requests",
+          "refId": "A"
+        }
+      ],
+      "title": "Tổng request HTTP (1h)",
+      "type": "stat"
+    },
+    {
+      "description": "**Độ trễ phân bố HTTP của Backend API**\n\n- **p50**: Trung vị — 50%% requests có độ trễ ≤ giá trị này\n- **p95**: 95%% requests có độ trễ ≤ giá trị này\n- **p99**: 99%% requests có độ trễ ≤ giá trị này\n\n**Threshold đỏ** (≥80s): Có thể do LLM API chậm, database query nặng, hoặc worker quá tải.",
+      "gridPos": {"h": 4, "w": 6, "x": 9, "y": 1},
+      "id": 4,
+      "options": {
+        "legend": {"calcs": ["mean", "max"], "displayMode": "list", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by(le) (rate(docai_http_request_duration_seconds_bucket{path=\"/\"}[5m]))) or vector(0)",
+          "legendFormat": "p50",
+          "refId": "A",
+          "instant": true
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(docai_http_request_duration_seconds_bucket{path=\"/\"}[5m]))) or vector(0)",
+          "legendFormat": "p95",
+          "refId": "B",
+          "instant": true
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by(le) (rate(docai_http_request_duration_seconds_bucket{path=\"/\"}[5m]))) or vector(0)",
+          "legendFormat": "p99",
+          "refId": "C",
+          "instant": true
+        }
+      ],
+      "title": "API Latency (p50/p95/p99)",
+      "type": "timeseries"
+    },
+    {
+      "description": "**Số job đang chờ xử lý (pending) trên Redis Streams**\n\nDùng `XPENDING` — đếm message đã giao cho worker nhưng CHƯA được ACK.\n\n- **= 0 (XANH)**: Không có backlog — hệ thống xử lý kịp\n- **> 0 (VÀNG >50)**: Cảnh báo — cân nhắc scale worker\n- **> 100 (ĐỎ)**: Nghiêm trọng — workers không kịp xử lý\n\n**Lưu ý**: Chỉ tính messages chưa acknowledge, không phải tổng messages đã tạo.",
+      "gridPos": {"h": 4, "w": 3, "x": 15, "y": 1},
+      "id": 5,
+      "targets": [
+        {
+          "expr": "docai_queue_depth",
+          "legendFormat": "{{ stream }}",
+          "refId": "A"
+        }
+      ],
+      "title": "Queue Depth (pending jobs)",
+      "type": "stat"
+    },
+    {
+      "description": "**Tỷ lệ job hoàn thành thành công**\n\n`= Completed / (Completed + Failed)` trong 1 giờ qua.\n\n- **≥ 95%% (XANH)**: Hệ thống ổn định\n- **< 95%% (ĐỎ)**: Có lỗi nghiêm trọng — kiểm tra `Job Throughput` để xem job type nào fail\n\nMetric này chỉ chính xác khi có đủ sample data (ít nhất vài job completed).",
+      "gridPos": {"h": 4, "w": 3, "x": 18, "y": 1},
+      "id": 6,
+      "targets": [
+        {
+          "expr": "sum(increase(docai_jobs_completed_total[1h])) / (sum(increase(docai_jobs_completed_total[1h])) + sum(increase(docai_jobs_failed_total[1h])) + 0.001)",
+          "legendFormat": "Success Rate",
+          "refId": "A"
+        }
+      ],
+      "title": "Job Success Rate",
+      "type": "stat"
+    },
+    {
+      "description": "**Số job đang xử lý đồng thời**\n\nĐếm gauge `docai_worker_active_jobs` trên tất cả platform workers.\n\n- **= 0**: Không có job đang chạy\n- **> 0**: Có job đang được process — bình thường khi đang có workload\n\nMetric này reset về 0 khi job finish hoặc worker shutdown.",
+      "gridPos": {"h": 4, "w": 3, "x": 21, "y": 1},
+      "id": 7,
+      "targets": [
+        {
+          "expr": "sum(max by(worker_name) (docai_worker_active_jobs)) or vector(0)",
+          "legendFormat": "Active Jobs",
+          "refId": "A"
+        }
+      ],
+      "title": "Active Jobs",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "description": "## Job Throughput\nThống kê lưu lượng job: số job được tạo, hoàn thành, và thất bại theo từng loại (job_type). Dùng `increase()` để lấy absolute count trong 1 giờ.",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5},
+      "id": 8,
+      "panels": [],
+      "title": "Job Throughput",
+      "type": "row"
+    },
+    {
+      "description": "**Lưu lượng job theo loại**\n\n- **Enqueued**: Job mới được tạo và đẩy vào Redis stream\n- **Completed**: Job đã xử lý xong thành công (worker gọi `XACK`)\n- **Failed**: Job thất bại sau khi hết retries\n\nJob types phổ biến: `file.convert.requested`, `dossier.extract.global`, `dossier.validate`",
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 6},
+      "id": 9,
+      "targets": [
+        {
+          "expr": "sum by(job_type) (increase(docai_jobs_enqueued_total[1h]))",
+          "legendFormat": "Enqueued {{ job_type }}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by(job_type) (increase(docai_jobs_completed_total[1h]))",
+          "legendFormat": "Completed {{ job_type }}",
+          "refId": "B"
+        },
+        {
+          "expr": "sum by(job_type) (increase(docai_jobs_failed_total[1h]))",
+          "legendFormat": "Failed {{ job_type }}",
+          "refId": "C"
+        }
+      ],
+      "title": "Job Throughput by Type",
+      "type": "timeseries"
+    },
+    {
+      "description": "**Thời gian xử lý job theo loại**\n\n- **p50**: Trung vị thời gian xử lý 1 job\n- **p95**: 95%% jobs xử lý trong thời gian này\n\nDùng `histogram_quantile()` trên rate của histogram buckets để tính phân bố thời gian xử lý.\n\nNếu p95 tăng đột ngột → có thể worker đang chờ external API (MinIO, LLM) hoặc backlog queue.",
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 6},
+      "id": 10,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by(job_type, le) (rate(docai_job_duration_seconds_bucket[5m]))) or vector(0)",
+          "legendFormat": "p50 {{ job_type }}",
+          "refId": "A",
+          "instant": true
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(job_type, le) (rate(docai_job_duration_seconds_bucket[5m]))) or vector(0)",
+          "legendFormat": "p95 {{ job_type }}",
+          "refId": "B",
+          "instant": true
+        }
+      ],
+      "title": "Job Duration by Type",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "description": "## LLM Performance\nThống kê các API call đến LLM services (Gemini, Qwen, Claude). Bao gồm tốc độ request, độ trễ và tỷ lệ lỗi. Metric chỉ hiển thị khi có LLM request thực tế.",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 12},
+      "id": 11,
+      "panels": [],
+      "title": "LLM Performance",
+      "type": "row"
+    },
+    {
+      "description": "**Số lần gọi LLM API thành công / lỗi**\n\nMetric chỉ hiển thị khi có extraction hoặc validation request gọi LLM thực sự.\n\n- **success**: API trả 200, có response\n- **error**: API lỗi (429 quota, 500, timeout, network)\n\nServices: `gemini` (Gemini-2.5-Flash), `qwen` (Qwen3-30B)",
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 13},
+      "id": 12,
+      "targets": [
+        {
+          "expr": "sum by(service, model) (increase(docai_llm_requests_total{result=\"success\"}[1h]))",
+          "legendFormat": "{{ service }}/{{ model }} success",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by(service, model) (increase(docai_llm_requests_total{result=\"error\"}[1h]))",
+          "legendFormat": "{{ service }}/{{ model }} error",
+          "refId": "B"
+        }
+      ],
+      "title": "LLM Request Rate",
+      "type": "timeseries"
+    },
+    {
+      "description": "**Độ trễ LLM API response**\n\n- **p50**: Trung vị thời gian chờ response từ LLM\n- **p95**: 95%% requests có độ trễ ≤ giá trị này\n\nThreshold thường: p95 < 60s là OK cho extraction prompts dài. Nếu p95 > 120s → kiểm tra API quota hoặc network latency.",
+      "gridPos": {"h": 6, "w": 8, "x": 8, "y": 13},
+      "id": 13,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by(service, model, le) (rate(docai_llm_request_duration_seconds_bucket[1h]))) or vector(0)",
+          "legendFormat": "p50 {{ service }}/{{ model }}",
+          "refId": "A",
+          "instant": true
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(service, model, le) (rate(docai_llm_request_duration_seconds_bucket[1h]))) or vector(0)",
+          "legendFormat": "p95 {{ service }}/{{ model }}",
+          "refId": "B",
+          "instant": true
+        }
+      ],
+      "title": "LLM Latency",
+      "type": "timeseries"
+    },
+    {
+      "description": "**Tỷ lệ LLM API call thất bại**\n\n`= errors / total_requests` trong 1 giờ.\n\n- **< 5%% (XANH)**: Bình thường\n- **5-15%% (VÀNG)**: Có vấn đề — kiểm tra quota, rate limit\n- **> 15%% (ĐỎ)**: Nghiêm trọng — API không ổn định\n\nNguyên nhân phổ biến: 429 (quota exceeded), timeout, network partition.",
+      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 13},
+      "id": 14,
+      "targets": [
+        {
+          "expr": "sum by(service, model) (increase(docai_llm_requests_total{result=\"error\"}[1h])) / (sum by(service, model) (increase(docai_llm_requests_total[1h])) + 0.001)",
+          "legendFormat": "Error Rate {{ service }}/{{ model }}",
+          "refId": "A"
+        }
+      ],
+      "title": "LLM Error Rate",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "description": "## Extraction Quality\nChất lượng trích xuất: độ confidence (0-1) và thời gian trích xuất trung bình. Metric chỉ hiển thị khi có extraction request thực tế tạo ra confidence score.",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 19},
+      "id": 15,
+      "panels": [],
+      "title": "Extraction Quality",
+      "type": "row"
+    },
+    {
+      "description": "**Phân bố confidence score của extraction**\n\nConfidence score: 0.0 (hoàn toàn không chắc) → 1.0 (hoàn toàn tự tin).\n\n- **p50**: Trung vị confidence — 50%% extractions có confidence ≥ giá trị này\n- **p90**: 90%% extractions có confidence ≥ giá trị này\n\n**Benchmark**:\n- ≥ 0.8 (XANH): Chất lượng tốt\n- 0.5-0.8 (VÀNG): Cần human review\n- < 0.5 (ĐỎ): Low quality — có thể do ảnh mờ, watermark, layout phức tạp",
+      "gridPos": {"h": 5, "w": 12, "x": 0, "y": 20},
+      "id": 16,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(docai_extraction_confidence_bucket[1h])) or vector(0)",
+          "legendFormat": "p50 confidence",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.90, rate(docai_extraction_confidence_bucket[1h])) or vector(0)",
+          "legendFormat": "p90 confidence",
+          "refId": "B"
+        }
+      ],
+      "title": "Extraction Confidence",
+      "type": "timeseries"
+    },
+    {
+      "description": "**Thời gian trích xuất một hồ sơ**\n\np50/p95 thời gian từ lúc bắt đầu extraction đến khi có kết quả.\n\nFactors ảnh hưởng: số file, độ phức tạp layout, LLM API latency.\n\nBenchmark: file PDF đơn giản < 30s, dossier lớn (nhiều file) < 5 phút.",
+      "gridPos": {"h": 5, "w": 12, "x": 12, "y": 20},
+      "id": 17,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by(use_agent_mode, le) (rate(docai_extraction_duration_seconds_bucket[1h]))) or vector(0)",
+          "legendFormat": "p50 (agent={{ use_agent_mode }})",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(use_agent_mode, le) (rate(docai_extraction_duration_seconds_bucket[1h]))) or vector(0)",
+          "legendFormat": "p95 (agent={{ use_agent_mode }})",
+          "refId": "B"
+        }
+      ],
+      "title": "Extraction Duration",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "description": "## Worker Health\nTrạng thái health của các workers đang chạy. Worker gửi heartbeat `/healthz` hoặc `/metrics` mỗi 10-30s. Nếu Prometheus không scrape được → worker được coi là DOWN.",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 25},
+      "id": 18,
+      "panels": [],
+      "title": "Worker Health",
+      "type": "row"
+    },
+    {
+      "description": "**Số lượng Platform Worker đang alive**\n\nMỗi worker instance gửi `docai_worker_status=1` khi khởi động.\n\n- **= 0 (ĐỎ)**: Không có worker nào chạy → job queue sẽ tích lũy\n- **= N (XANH)**: Có N workers đang active\n\n**Cách hoạt động**: Worker gọi `WORKER_STATUS.labels(worker_type=\"platform\").set(1)` trong `__init__`. Nếu worker crash, container restart → metric sẽ bị Prometheus mark là `absent()` → panel ĐỎ.",
+      "gridPos": {"h": 3, "w": 8, "x": 0, "y": 26},
+      "id": 19,
+      "targets": [
+        {
+          "expr": "sum by (worker_type) (docai_worker_status{worker_type=\"platform\"})",
+          "legendFormat": "Platform Workers",
+          "refId": "A"
+        }
+      ],
+      "title": "Platform Worker Status",
+      "type": "stat"
+    },
+    {
+      "description": "**Số lượng DocProcess Worker đang alive**\n\nDocProcess worker chịu trách nhiệm convert file (PDF → markdown, OCR).\n\n- **= 0 (ĐỎ)**: Không có worker convert file → pipeline sẽ dừng\n- **= N (XANH)**: N workers đang sẵn sàng xử lý file\n\nWorker health được expose qua `/healthz` trả về Prometheus text format.",
+      "gridPos": {"h": 3, "w": 8, "x": 8, "y": 26},
+      "id": 20,
+      "targets": [
+        {
+          "expr": "sum by (worker_type) (docai_worker_status{worker_type=\"docprocess\"}) or vector(0)",
+          "legendFormat": "DocProcess Workers",
+          "refId": "A"
+        }
+      ],
+      "title": "DocProcess Worker Status",
+      "type": "stat"
+    },
+    {
+      "description": "**Số job đang xử lý trên từng worker**\n\nBiểu đồ line cho thấy workload distribution giữa các workers.\n\n- **Peak cao**: Worker đang bận xử lý job nặng (LLM call, file convert)\n- **Flat = 0**: Workers đang idle — không có job trong queue\n\nMỗi worker tăng gauge khi nhận job, giảm khi job finish.",
+      "gridPos": {"h": 3, "w": 8, "x": 16, "y": 26},
+      "id": 21,
+      "targets": [
+        {
+          "expr": "sum(max by(worker_name) (docai_worker_active_jobs)) or vector(0)",
+          "legendFormat": "{{ worker_name }}",
+          "refId": "A"
+        }
+      ],
+      "title": "Active Jobs per Worker",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "tags": ["docai", "observability"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "DocAI — System Overview",
+  "uid": "docai-system-overview",
+  "version": 1,
+  "weekStart": ""
+}

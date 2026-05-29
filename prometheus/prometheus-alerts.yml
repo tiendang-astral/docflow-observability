@@ -1,0 +1,215 @@
+groups:
+  - name: docai_critical
+    rules:
+      # High error rate
+      - alert: DocAIBackendHighErrorRate
+        expr: |
+          rate(docai_jobs_failed_total[5m])
+          / (rate(docai_jobs_completed_total[5m]) + rate(docai_jobs_failed_total[5m]) + 0.001)
+          > 0.1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "DocAI backend error rate > 10% for 2 minutes"
+          description: "{{ $labels.job_type }} jobs failing at {{ $value | humanizePercentage }}"
+
+      - alert: DocAIBackendAPIErrors
+        expr: |
+          rate(docai_http_request_duration_seconds_count{status=~"5.."}[5m])
+          > 0.05
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend API returning 5xx errors"
+          description: "API 5xx rate: {{ $value | printf \"%.2f\" }}/s on {{ $labels.path }}"
+
+      # Worker health
+      - alert: DocAIPlatformWorkerDown
+        expr: |
+          absent(docai_worker_status{worker_type="platform"}) == 1
+          or
+          docai_worker_status{worker_type="platform"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "DocAI platform worker is down"
+          description: "No worker heartbeats for 1 minute. Jobs may be accumulating."
+
+      - alert: DocAIDocprocessWorkerDown
+        expr: |
+          absent(docai_worker_status{worker_type="docprocess"}) == 1
+          or
+          docai_worker_status{worker_type="docprocess"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DocAI docprocess worker is down"
+          description: "Document processing may be stalled."
+
+      # Queue backlog
+      - alert: DocAIQueueBacklog
+        expr: docai_queue_depth > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DocAI job queue backlog > 100"
+          description: "Stream {{ $labels.stream }} has {{ $value }} pending messages. Consider scaling workers."
+
+      - alert: DocAIQueueBacklogCritical
+        expr: docai_queue_depth > 500
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "DocAI job queue severely backed up"
+          description: "Stream {{ $labels.stream }} has {{ $value }} pending messages. Worker capacity insufficient."
+
+      # LLM health
+      - alert: DocAILLMSlowResponses
+        expr: |
+          histogram_quantile(0.95,
+            rate(docai_llm_request_duration_seconds_bucket[5m])
+          ) > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DocAI LLM p95 latency > 60s"
+          description: "{{ $labels.service }}/{{ $labels.model }} p95: {{ $value | printf \"%.1f\" }}s"
+
+      # Infrastructure
+      - alert: DocAIBackendDown
+        expr: up{job="docai-backend"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "DocAI backend API is unreachable"
+          description: "Backend /metrics endpoint not responding. Likely process crash or OOM."
+
+      - alert: DocAIJobStuck
+        expr: |
+          docai_jobs_enqueued_total - (docai_jobs_completed_total + docai_jobs_failed_total)
+          > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DocAI jobs may be stuck"
+          description: "Jobs enqueued but not completed after 15 minutes. Check worker logs."
+
+  # Infrastructure (node-exporter + postgres-exporter)
+  - name: docai_infra
+    rules:
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU usage high > 85%"
+          description: "CPU at {{ $value | printf \"%.1f\" }}%. Check running processes."
+
+      - alert: CriticalCPUUsage
+        expr: |
+          100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CPU usage critical > 95%"
+          description: "CPU at {{ $value | printf \"%.1f\" }}% for 2 minutes. System may hang."
+
+      - alert: HighMemoryUsage
+        expr: |
+          (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes)
+          / node_memory_MemTotal_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RAM usage high > 85%"
+          description: "RAM at {{ $value | printf \"%.1f\" }}%. Risk of OOM kill."
+
+      - alert: CriticalMemoryUsage
+        expr: |
+          (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes)
+          / node_memory_MemTotal_bytes * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "RAM nearly full > 95%"
+          description: "RAM at {{ $value | printf \"%.1f\" }}%. OOM kill imminent."
+
+      - alert: HighDiskUsage
+        expr: |
+          (node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs", mountpoint="/"}
+          - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs", mountpoint="/"})
+          / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs", mountpoint="/"} * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk usage high > 80%"
+          description: "Disk {{ $labels.mountpoint }} at {{ $value | printf \"%.1f\" }}%. Clean old logs/data."
+
+      - alert: CriticalDiskUsage
+        expr: |
+          (node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs", mountpoint="/"}
+          - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs", mountpoint="/"})
+          / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs", mountpoint="/"} * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk nearly full > 90%"
+          description: "Disk {{ $labels.mountpoint }} at {{ $value | printf \"%.1f\" }}%. Act now to prevent crash."
+
+      - alert: PostgreSQLHighConnections
+        expr: |
+          pg_stat_activity_count / pg_settings_max_connections * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL connections > 80% of limit"
+          description: "Using {{ $value | printf \"%.1f\" }}% of max_connections. Check connection pool."
+
+      - alert: PostgreSQLDown
+        expr: up{job="postgres-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL exporter unreachable"
+          description: "postgres-exporter lost connection. Database may be down."
+
+  - name: docai_slo
+    rules:
+      - alert: DocAIP95LatencySLOBreach
+        expr: |
+          histogram_quantile(0.95,
+            rate(docai_http_request_duration_seconds_bucket[5m])
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DocAI API p95 latency SLO breach (>5s)"
+          description: "p95={{ $value | printf \"%.2f\" }}s on {{ $labels.path }}. Investigate slow queries or LLM calls."
+
+      - alert: DocAIHealthCheckFailing
+        expr: probe_success{job="docai-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "DocAI backend health check failing"
+          description: "Backend /health endpoint not responding."

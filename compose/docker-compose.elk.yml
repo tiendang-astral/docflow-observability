@@ -1,0 +1,117 @@
+name: docflow-elk
+
+# =============================================================================
+# DocFlow — ELK Log Collection Stack
+# =============================================================================
+# Khởi động: ./scripts/up.sh --elk
+# Tắt:       ./scripts/down.sh --elk
+#
+# Yêu cầu host:
+#   sysctl -w vm.max_map_count=262144
+#   (thêm vào /etc/sysctl.conf để persist sau reboot)
+#
+# Ports:
+#   Elasticsearch : ${ELASTIC_PORT:-29200}
+#   Kibana        : ${KIBANA_PORT:-29560}
+# =============================================================================
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    platform: linux/amd64
+    container_name: docflow-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - cluster.name=docflow-logs
+      - bootstrap.memory_lock=true
+    ports:
+      - "${ELASTIC_PORT:-29200}:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - elk_network
+    restart: unless-stopped
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    platform: linux/amd64
+    container_name: docflow-kibana
+    environment:
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+      KIBANA_ENCRYPTION_KEY: ${KIBANA_ENCRYPTION_KEY:?KIBANA_ENCRYPTION_KEY is required}
+      SERVER_NAME: docflow-kibana
+      XPACK_SECURITY_ENABLED: "false"
+    ports:
+      - "${KIBANA_PORT:-29560}:5601"
+    networks:
+      - elk_network
+    restart: unless-stopped
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5601/api/status | grep -q 'available'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  kibana-init:
+    image: alpine:3.19
+    platform: linux/amd64
+    container_name: docflow-kibana-init
+    networks:
+      - elk_network
+    restart: "no"
+    depends_on:
+      kibana:
+        condition: service_healthy
+    entrypoint: ["sh", "-c"]
+    command:
+      - "apk add -q --no-cache curl && curl -sf -X POST http://kibana:5601/api/data_views/data_view -H 'kbn-xsrf: true' -H 'Content-Type: application/json' -d '{\"data_view\":{\"title\":\"docflow-logs-*\",\"name\":\"DocFlow Logs\",\"timeFieldName\":\"@timestamp\"}}' && echo 'Kibana data view created.'"
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.0
+    platform: linux/amd64
+    container_name: docflow-filebeat
+    user: root
+    command: filebeat -e --strict.perms=false
+    environment:
+      ELASTICSEARCH_HOST: elasticsearch
+      ELASTIC_PORT: "9200"
+    volumes:
+      - ../filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - filebeat_data:/usr/share/filebeat/data
+    networks:
+      - elk_network
+    restart: unless-stopped
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+networks:
+  elk_network:
+    driver: bridge
+    name: ${DOCFLOW_ELK_NETWORK:-docflow-elk}
+
+volumes:
+  elasticsearch_data:
+  filebeat_data:

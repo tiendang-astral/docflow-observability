@@ -1,0 +1,54 @@
+global:
+  resolve_timeout: 5m
+  telegram_api_url: 'https://api.telegram.org'
+
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# ── Routing tree ─────────────────────────────────────────────────────────────
+route:
+  group_by: ['alertname', 'severity']
+  group_wait: 30s        # chờ gom alert cùng nhóm trước khi gửi lần đầu
+  group_interval: 5m     # khoảng cách giữa các lần gửi khi có alert mới trong nhóm
+  repeat_interval: 4h    # gửi lại nếu alert vẫn còn firing sau khoảng này
+  receiver: 'telegram-warning'
+
+  routes:
+    - matchers:
+        - severity = critical
+      receiver: 'telegram-critical'
+      repeat_interval: 1h    # critical nhắc lại mỗi 1h
+      continue: false
+
+    - matchers:
+        - severity = warning
+      receiver: 'telegram-warning'
+      repeat_interval: 6h
+      continue: false
+
+# ── Receivers ────────────────────────────────────────────────────────────────
+receivers:
+  - name: 'telegram-critical'
+    telegram_configs:
+      - bot_token: '${TELEGRAM_BOT_TOKEN}'
+        chat_id: ${TELEGRAM_CHAT_ID}
+        parse_mode: 'HTML'
+        message: '{{ template "telegram.docai.message" . }}'
+        send_resolved: true
+
+  - name: 'telegram-warning'
+    telegram_configs:
+      - bot_token: '${TELEGRAM_BOT_TOKEN}'
+        chat_id: ${TELEGRAM_CHAT_ID}
+        parse_mode: 'HTML'
+        message: '{{ template "telegram.docai.message" . }}'
+        send_resolved: true
+
+# ── Inhibit rules ────────────────────────────────────────────────────────────
+# Khi critical đang firing, ẩn warning cùng alertname để giảm noise
+inhibit_rules:
+  - source_matchers:
+      - severity = critical
+    target_matchers:
+      - severity = warning
+    equal: ['alertname']

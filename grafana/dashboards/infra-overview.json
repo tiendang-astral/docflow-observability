@@ -1,0 +1,1361 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": ["docai"],
+      "targetBlank": false,
+      "title": "DocAI System Overview",
+      "type": "dashboards"
+    }
+  ],
+  "panels": [
+
+    {
+      "id": 100,
+      "type": "row",
+      "title": "API & Infrastructure",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "panels": []
+    },
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "CPU usage",
+      "description": "Average CPU utilization across all cores. Green < 70%, Yellow 70–85%, Red > 85%.",
+      "gridPos": { "h": 3, "w": 5, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "max": 100,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 70 },
+              { "color": "red", "value": 85 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[2m])) * 100)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Memory",
+      "description": "RAM utilization as % of total. Green < 70%, Yellow 70–85%, Red > 85%.",
+      "gridPos": { "h": 3, "w": 5, "x": 5, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "max": 100,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 70 },
+              { "color": "red", "value": 85 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "P95 latency",
+      "description": "95th-percentile HTTP response time (ms). Green < 500ms, Yellow < 2s, Red ≥ 2s.",
+      "gridPos": { "h": 3, "w": 5, "x": 10, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 500 },
+              { "color": "red", "value": 2000 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "histogram_quantile(0.95, sum(rate(docai_http_request_duration_seconds_bucket[5m])) by (le)) * 1000",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Error rate",
+      "description": "HTTP 5xx responses as % of all requests. Green < 1%, Yellow < 5%, Red ≥ 5%.",
+      "gridPos": { "h": 3, "w": 5, "x": 15, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "min": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "(sum(rate(docai_http_request_duration_seconds_count{status=~\"5..\"}[5m])) / (sum(rate(docai_http_request_duration_seconds_count[5m])) + 0.001)) * 100 or vector(0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 50,
+      "type": "stat",
+      "title": "Disk usage",
+      "description": "Dung lượng disk đã dùng và tổng dung lượng (loại trừ tmpfs/squashfs).",
+      "gridPos": { "h": 3, "w": 4, "x": 20, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 1,
+          "min": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Used" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "text" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Total" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "text" } }]
+          }
+        ]
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(max without(mountpoint) (node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs|zfs\"})) - sum(max without(mountpoint) (node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs|zfs\"}))",
+          "legendFormat": "Used",
+          "refId": "A",
+          "instant": true
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(max without(mountpoint) (node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs|zfs\"}))",
+          "legendFormat": "Total",
+          "refId": "B",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "CPU & Memory & Latency & Requests — combined",
+      "description": "Trục trái (%): CPU (xanh dương) + RAM (xanh lá). Trục phải (ms): P95 Latency (cam). Cột nền (tím): Requests/s. Đường đỏ nét đứt = ngưỡng 85%.",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 105,
+          "decimals": 1,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "left",
+            "axisLabel": "CPU / RAM (%)",
+            "thresholdsStyle": { "mode": "dashed" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "transparent", "value": null },
+              { "color": "red", "value": 85 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "CPU %" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#5794F2" } },
+              { "id": "custom.fillOpacity", "value": 15 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "RAM %" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } },
+              { "id": "custom.fillOpacity", "value": 8 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "P95 Latency (ms)" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FF9830" } },
+              { "id": "unit", "value": "ms" },
+              { "id": "min", "value": 0 },
+              { "id": "custom.axisPlacement", "value": "right" },
+              { "id": "custom.axisLabel", "value": "Latency (ms)" },
+              { "id": "custom.lineWidth", "value": 2 },
+              { "id": "custom.fillOpacity", "value": 0 },
+              { "id": "custom.thresholdsStyle", "value": { "mode": "off" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Requests/s" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#8073C4" } },
+              { "id": "unit", "value": "reqps" },
+              { "id": "min", "value": 0 },
+              { "id": "custom.drawStyle", "value": "bars" },
+              { "id": "custom.lineWidth", "value": 0 },
+              { "id": "custom.fillOpacity", "value": 35 },
+              { "id": "custom.axisPlacement", "value": "hidden" },
+              { "id": "custom.thresholdsStyle", "value": { "mode": "off" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["mean", "max", "lastNotNull"]
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[2m])) * 100)",
+          "legendFormat": "CPU %",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+          "legendFormat": "RAM %",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "histogram_quantile(0.95, sum(rate(docai_http_request_duration_seconds_bucket[5m])) by (le)) * 1000",
+          "legendFormat": "P95 Latency (ms)",
+          "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(rate(docai_http_request_duration_seconds_count[1m]))",
+          "legendFormat": "Requests/s",
+          "refId": "D"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Request latency P50 / P95 / P99",
+      "description": "Độ trễ HTTP backend theo percentile. P95 (cam) = 95% request dưới giá trị này. P99 (đỏ) = 99%.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 0,
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "P95" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FF9830" } },
+              { "id": "custom.fillOpacity", "value": 12 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "P99" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#F2495C" } },
+              { "id": "custom.fillOpacity", "value": 6 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "P50" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } },
+              { "id": "custom.lineWidth", "value": 1 },
+              { "id": "custom.fillOpacity", "value": 5 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["mean", "max", "lastNotNull"]
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "histogram_quantile(0.50, sum(rate(docai_http_request_duration_seconds_bucket[5m])) by (le)) * 1000",
+          "legendFormat": "P50",
+          "refId": "P50"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "histogram_quantile(0.95, sum(rate(docai_http_request_duration_seconds_bucket[5m])) by (le)) * 1000",
+          "legendFormat": "P95",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "histogram_quantile(0.99, sum(rate(docai_http_request_duration_seconds_bucket[5m])) by (le)) * 1000",
+          "legendFormat": "P99",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Request rate & errors",
+      "description": "Tổng số request/s (cột tím) và errors/s 5xx (cột đỏ).",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 0,
+            "fillOpacity": 75,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "barMaxWidth": 6
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Requests/s" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#7466C8" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Errors/s" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#E24D42" } }]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["mean", "max"]
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(rate(docai_http_request_duration_seconds_count[1m]))",
+          "legendFormat": "Requests/s",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(rate(docai_http_request_duration_seconds_count{status=~\"5..\"}[1m]))",
+          "legendFormat": "Errors/s",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Disk I/O & Network throughput",
+      "description": "Throughput đọc/ghi disk và lưu lượng mạng vào/ra (MB/s). Chỉ các interface thực tế (loại trừ lo, docker, veth).",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "binBps",
+          "decimals": 2,
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Disk read" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#E07070" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Disk write" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#9B59B6" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Network in" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#1ABC9C" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Network out" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#E67E22" } }]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["mean", "max"]
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(rate(node_disk_read_bytes_total[2m]))",
+          "legendFormat": "Disk read",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(rate(node_disk_written_bytes_total[2m]))",
+          "legendFormat": "Disk write",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(rate(node_network_receive_bytes_total{device!~\"lo|docker.*|br-.*|veth.*\"}[2m]))",
+          "legendFormat": "Network in",
+          "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(rate(node_network_transmit_bytes_total{device!~\"lo|docker.*|br-.*|veth.*\"}[2m]))",
+          "legendFormat": "Network out",
+          "refId": "D"
+        }
+      ]
+    },
+
+    {
+      "id": 101,
+      "type": "row",
+      "title": "Job",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
+      "panels": []
+    },
+    {
+      "id": 33,
+      "type": "stat",
+      "title": "Platform Worker",
+      "description": "Số platform worker đang alive. = 0 → job queue tích lũy, không có worker xử lý.",
+      "gridPos": { "h": 3, "w": 8, "x": 0, "y": 31 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",   "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(docai_worker_status{worker_type=\"platform\"}) or vector(0)",
+          "legendFormat": "Platform",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "type": "stat",
+      "title": "DocProcess Worker",
+      "description": "Số docprocess worker đang alive. = 0 → file conversion pipeline dừng.",
+      "gridPos": { "h": 3, "w": 8, "x": 8, "y": 31 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",   "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(docai_worker_status{worker_type=\"docprocess\"}) or vector(0)",
+          "legendFormat": "DocProcess",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Queue Depth",
+      "description": "Số message đã giao cho worker nhưng chưa ACK trên Redis Stream. Vàng > 50, Đỏ > 100.",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 34 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 50 },
+              { "color": "red", "value": 100 }
+            ]
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false,
+            "thresholdsStyle": { "mode": "dashed" }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "docai_queue_depth",
+          "legendFormat": "{{ stream }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Job Error Rate",
+      "description": "% job thất bại trên tổng job enqueued (5 phút gần nhất). Xanh < 5%, Vàng 5–15%, Đỏ > 15%.",
+      "gridPos": { "h": 3, "w": 8, "x": 16, "y": 31 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 5 },
+              { "color": "red", "value": 15 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(rate(docai_jobs_failed_total[5m])) / (sum(rate(docai_jobs_enqueued_total[5m])) + 0.001) * 100 or vector(0)",
+          "legendFormat": "Error Rate",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "Job Throughput",
+      "description": "Tốc độ job enqueued / failed theo thời gian (jobs/s). Enqueued tăng mà Failed theo sát → pipeline đang gặp lỗi. Failed tăng đột ngột → kiểm tra worker logs.",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 41 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Enqueued" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#5794F2" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Completed" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Failed" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#F2495C" } },
+              { "id": "custom.lineWidth", "value": 2 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["mean", "max", "lastNotNull"]
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(rate(docai_jobs_enqueued_total[5m]))",
+          "legendFormat": "Enqueued",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(rate(docai_jobs_completed_total[5m]))",
+          "legendFormat": "Completed",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(rate(docai_jobs_failed_total[5m])) or vector(0)",
+          "legendFormat": "Failed",
+          "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(rate(docai_jobs_retried_total[5m])) or vector(0)",
+          "legendFormat": "Retried",
+          "refId": "D"
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "Job Latency p50 / p95 / p99",
+      "description": "Thời gian xử lý job theo percentile (`docai_job_duration_seconds`). p95 (cam) = 95% job xong trong thời gian này. p99 (đỏ) = đuôi phân bố — thường do LLM chậm hoặc file phức tạp.",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 41 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 1,
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "p50" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } },
+              { "id": "custom.lineWidth", "value": 1 },
+              { "id": "custom.fillOpacity", "value": 5 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "p95" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FF9830" } },
+              { "id": "custom.fillOpacity", "value": 12 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "p99" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#F2495C" } },
+              { "id": "custom.fillOpacity", "value": 6 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["mean", "max", "lastNotNull"]
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "histogram_quantile(0.50, sum by(le) (rate(docai_job_duration_seconds_bucket[5m]))) or vector(0)",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(docai_job_duration_seconds_bucket[5m]))) or vector(0)",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "histogram_quantile(0.99, sum by(le) (rate(docai_job_duration_seconds_bucket[5m]))) or vector(0)",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "Job Queue Wait p50 / p95 / p99",
+      "description": "Thời gian job nằm chờ trong queue trước khi worker bắt đầu xử lý (`docai_job_queue_wait_seconds`). Phân biệt 2 nguyên nhân chậm: wait cao → worker bận/thiếu; duration cao → xử lý nặng (LLM, OCR).",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 34 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 1,
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "p50" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } },
+              { "id": "custom.lineWidth", "value": 1 },
+              { "id": "custom.fillOpacity", "value": 5 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "p95" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FF9830" } },
+              { "id": "custom.fillOpacity", "value": 12 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "p99" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#F2495C" } },
+              { "id": "custom.fillOpacity", "value": 6 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["mean", "max", "lastNotNull"]
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "histogram_quantile(0.50, sum by(le) (rate(docai_job_queue_wait_seconds_bucket[5m]))) or vector(0)",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(docai_job_queue_wait_seconds_bucket[5m]))) or vector(0)",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "histogram_quantile(0.99, sum by(le) (rate(docai_job_queue_wait_seconds_bucket[5m]))) or vector(0)",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ]
+    },
+
+    {
+      "id": 20,
+      "type": "row",
+      "title": "PostgreSQL",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 48 },
+      "panels": []
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "PG Status",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 49 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "DOWN", "color": "red", "index": 0 },
+                "1": { "text": "UP",   "color": "green", "index": 1 }
+              }
+            }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
+          "color": { "mode": "thresholds" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "pg_up",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "Connections",
+      "description": "Active connections so với max_connections. % vàng > 50%, đỏ > 80%.",
+      "gridPos": { "h": 4, "w": 5, "x": 4, "y": 49 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "fixed", "fixedColor": "text" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "%" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "decimals", "value": 1 },
+              { "id": "color", "value": { "mode": "thresholds" } },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green",   "value": null },
+                    { "color": "#EAB839", "value": 50 },
+                    { "color": "red",     "value": 80 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(pg_stat_database_numbackends{datname!~\"template.*|postgres\"})",
+          "legendFormat": "Active",
+          "refId": "A",
+          "instant": true
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "pg_settings_max_connections",
+          "legendFormat": "Max",
+          "refId": "B",
+          "instant": true
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(pg_stat_database_numbackends) / scalar(pg_settings_max_connections) * 100",
+          "legendFormat": "%",
+          "refId": "C",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "type": "stat",
+      "title": "Cache Hit Ratio",
+      "description": "Tỷ lệ block được đọc từ shared_buffers. < 99% nên tăng shared_buffers.",
+      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 49 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "min": 0,
+          "max": 100,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",     "value": null },
+              { "color": "#EAB839", "value": 90 },
+              { "color": "green",   "value": 99 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(rate(pg_stat_database_blks_hit[5m])) / (sum(rate(pg_stat_database_blks_hit[5m])) + sum(rate(pg_stat_database_blks_read[5m])) + 1e-10) * 100",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "type": "stat",
+      "title": "TPS (commit/s)",
+      "description": "Transactions committed per second trên toàn bộ databases.",
+      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 49 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "decimals": 1,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(rate(pg_stat_database_xact_commit[1m]))",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "type": "stat",
+      "title": "DB Size",
+      "description": "Used = kích thước database docaiplatform. Total = tổng disk của partition postgres.",
+      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 49 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 1,
+          "color": { "mode": "fixed", "fixedColor": "text" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "pg_database_size_bytes{datname!~\"template.*|postgres\"}",
+          "legendFormat": "Used",
+          "refId": "A",
+          "instant": true
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "max(node_filesystem_size_bytes{mountpoint=\"/var/lib\"})",
+          "legendFormat": "Total",
+          "refId": "B",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "type": "timeseries",
+      "title": "PG Connections over time",
+      "description": "Active connections (xanh) so với ngưỡng max_connections (đường đứt cam).",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 53 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Max connections" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#FF9830" } },
+              { "id": "custom.lineStyle", "value": { "dash": [10, 10], "fill": "dash" } },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": ["mean", "max"] }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(pg_stat_database_numbackends{datname!~\"template.*|postgres\"})",
+          "legendFormat": "Active connections",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "pg_settings_max_connections",
+          "legendFormat": "Max connections",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "type": "timeseries",
+      "title": "PG Transactions/s & Rollbacks",
+      "description": "Commit/s (xanh) và rollback/s (đỏ). Rollback cao bất thường cần điều tra.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 53 },
+      "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "decimals": 2,
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Rollbacks/s" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#F2495C" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Commits/s" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#73BF69" } }]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": ["mean", "max"] }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(rate(pg_stat_database_xact_commit{datname!~\"template.*|postgres\"}[1m]))",
+          "legendFormat": "Commits/s",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "docai-prometheus" },
+          "expr": "sum(rate(pg_stat_database_xact_rollback{datname!~\"template.*|postgres\"}[1m]))",
+          "legendFormat": "Rollbacks/s",
+          "refId": "B"
+        }
+      ]
+    }
+
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["docai", "infrastructure", "observability"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "1h", "value": "1h" },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Time range",
+        "multi": false,
+        "name": "quick_range",
+        "options": [
+          { "selected": false, "text": "15m", "value": "15m" },
+          { "selected": true,  "text": "1h",  "value": "1h"  },
+          { "selected": false, "text": "6h",  "value": "6h"  },
+          { "selected": false, "text": "24h", "value": "24h" }
+        ],
+        "query": "15m,1h,6h,24h",
+        "type": "custom"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {
+    "quick_ranges": [
+      { "display": "15m", "from": "now-15m", "to": "now" },
+      { "display": "1h",  "from": "now-1h",  "to": "now" },
+      { "display": "6h",  "from": "now-6h",  "to": "now" },
+      { "display": "24h", "from": "now-24h", "to": "now" }
+    ]
+  },
+  "timezone": "browser",
+  "title": "DocFlow — Web App Production",
+  "uid": "docai-infra-overview",
+  "version": 1,
+  "weekStart": ""
+}
