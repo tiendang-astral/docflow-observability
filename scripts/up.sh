@@ -95,7 +95,7 @@ if [ "$RUN_OBS" = true ]; then
   # 2b. postgres must be running (postgres-exporter depends on it)
   POSTGRES_CTR=$(docker network inspect docflow_network \
     --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null \
-    | tr ' ' '\n' | grep -E '^postgres$|^docflow-postgres$' | head -n1 || true)
+    | tr ' ' '\n' | grep -E '^postgres$|^docflow-postgres$|^docflow-prod-postgres' | head -n1 || true)
 
   if [ -z "$POSTGRES_CTR" ]; then
     error "postgres container not found on docflow_network."
@@ -108,7 +108,7 @@ if [ "$RUN_OBS" = true ]; then
   # 2c. docflow-backend must be running (prometheus scrapes /metrics)
   BACKEND_CTR=$(docker network inspect docflow_network \
     --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null \
-    | tr ' ' '\n' | grep -E '^docflow-backend$' | head -n1 || true)
+    | tr ' ' '\n' | grep -E '^docflow-backend$|^docflow-prod-docflow-backend' | head -n1 || true)
 
   if [ -z "$BACKEND_CTR" ]; then
     warn "docflow-backend not found on docflow_network."

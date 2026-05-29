@@ -42,7 +42,7 @@ services:
     platform: linux/amd64
     container_name: docflow-postgres-exporter
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-docflow}?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@${POSTGRES_HOST:-docflow-prod-postgres-1}:5432/${POSTGRES_DB:-docflow}?sslmode=disable"
     networks:
       - observability_network
       - docflow_network
